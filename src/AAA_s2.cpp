@@ -3,25 +3,44 @@
 #include <iostream>
 #include <atomic>
 #include <vector>
+#include "Theatre.h"
+
 using namespace std;
 
-atomic<int> numtickets(50);
+int numtickets=500;
+Theatre t1(numtickets/2);
+Theatre t2(numtickets/2);
+
 mutex m;
+mutex mcout;
 
+void print (string s){
+	lock_guard<mutex> lck1(mcout);
+	cout<<s<<endl;
+}
 void agent(int i){
-	//I sell tickets
 
-	while(numtickets>0){
+	//I sell tickets
+	int numsold=0;
+	print("Agent "+ to_string(i)+" starting...");
+
+	while(true){
 		{
-			lock_guard<mutex> lck(m);
-			if(numtickets!=0)
-				numtickets--;
+			lock_guard<mutex> lck1(m);
+			if (numtickets==0)
+				break;
+			numtickets--;
 		}
 
-		cout<<"Agent "<<i<<" sold a ticket, numtickets="<<numtickets<<endl;
+		//enter a theatre
+		if(!t1.enter())
+			t2.enter();
+
+		numsold++;
+		print("Agent "+ to_string(i)+" sold 1");
 	}
-	lock_guard<mutex> lck(m);
-	cout<<"Agent "<<i<<" LEAVING!, numtickets="<<numtickets<<endl;
+
+	print("Agent "+to_string(i)+" LEAVING!, sold="+to_string(numsold));
 }
 
 int main() {
@@ -34,9 +53,9 @@ int main() {
 	for (int i=0;i<numbThreads/2;i++){
 		vecThreads.push_back(std::thread(agent,i));
 	}
-	{
-		lock_guard<mutex> lck(m);
-		cout<<"Starting to sell tickets! numtickets="<<numtickets<<endl;
+
+	{lock_guard<mutex> lck1(m);
+	print("Starting to sell tickets! numtickets="+to_string(numtickets));
 	}
 
 	//wait for em to finish
@@ -45,5 +64,7 @@ int main() {
 	}
 
 	cout<<"Finished! numtickets="<<numtickets<<endl;
+	cout<<" num in theatre1="<<t1.get_cur_num_people()<<endl;
+	cout<<" num in theatre2="<<t2.get_cur_num_people()<<endl;
 	return 0;
 }
